@@ -1,0 +1,69 @@
+/*************************************************************************************
+File Name: GPS Speedometer
+Author: Ben Russell
+Date: 11 - 12 - 2018
+© Fanshawe College, 2018
+Desc: This program is used to gain data via a GY-GPSS6MU2 chip and send it out to a 1" OLED
+display to show current speed. GPS accuracy +/- 5km/h.
+*************************************************************************************/
+#include <SoftwareSerial.h>
+#include <U8glib.h>
+#include <TinyGPS++.h>
+
+TinyGPSPlus gps;
+SoftwareSerial ss(3, 4);  // set serial pins
+
+U8GLIB_SSD1306_128X64 u8g(U8G_I2C_OPT_NO_ACK);//setting screen size
+
+#define u8g_logo_sat_width 20
+#define u8g_logo_sat_height 20
+
+//XBM image of satellite logo to show when connection is active
+const unsigned char u8g_logo_sat[] = {
+   0x00, 0x00, 0x00, 0x80, 0x1f, 0x00, 0xe0, 0x70, 0x00, 0x30, 0xc0, 0x00,
+   0x80, 0x1f, 0x00, 0xc0, 0x30, 0x00, 0x00, 0x06, 0x00, 0x00, 0x06, 0x00,
+   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
+};
+
+void setup()  //set up screen colours and intensities
+{
+    if ( u8g.getMode() == U8G_MODE_R3G3B2 ) {
+    u8g.setColorIndex(255);     // white
+  }
+  else if ( u8g.getMode() == U8G_MODE_GRAY2BIT ) {
+    u8g.setColorIndex(3);         // max intensity
+  }
+  else if ( u8g.getMode() == U8G_MODE_BW ) {
+    u8g.setColorIndex(1);         // pixel on
+  }
+  else if ( u8g.getMode() == U8G_MODE_HICOLOR ) {
+    u8g.setHiColorByRGB(255,255,255);
+  }
+  Serial.begin(9600); //start commiunication at 9600 baud
+  ss.begin(9600);
+}
+
+void loop()
+{
+   gps.encode(ss.read()); // read GPS data
+   int speed = gps.speed.kmph(); //speed goes into an integer variable (Km/h)
+   if(speed<=2) // eliminate the error of when stopped reading 1 km/h
+      {
+      speed = 0;
+      }
+    u8g.firstPage();
+    do{ // print out to screen in assortment of fonts to fit the screen size
+    u8g.setFont(u8g_font_fur25n);
+    u8g.setPrintPos(15, 60);
+    u8g.print(speed, 10);
+    u8g.setFont(u8g_font_unifont);
+    u8g.drawStr( 80, 60, "KM/H");
+    u8g.drawStr( 20, 15, "FLOWKART");
+    if(gps.satellites.value())
+      {
+      u8g.drawXBM(108, 0, u8g_logo_sat_width, u8g_logo_sat_height, u8g_logo_sat);
+      }
+    }while(u8g.nextPage());
+}
